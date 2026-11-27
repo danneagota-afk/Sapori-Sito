@@ -1,0 +1,22 @@
+SAPORI RUMENI — V46 | Controllo e correzioni
+Base: V45 Animazione Fluida.
+
+CORREZIONI
+1. Le schede dei prodotti nascosti o rimossi non restano accessibili dopo il caricamento del catalogo, nemmeno tramite URL diretto.
+2. Il carrello salvato non viene azzerato quando cambia il numero di prodotti. Dopo una risposta valida del catalogo, i prodotti non più presenti vengono rimossi con un avviso. Controllo quantità positive, multipli dell’unità e scorte.
+3. Gli orari del ritiro vengono abilitati soltanto dopo il riscontro del server; risposte superate vengono ignorate.
+4. Il link privato di tracciamento rimane nell’indirizzo dopo la ricerca; aggiornare la pagina non perde il codice. Non divulgare il link.
+5. Sessione staff: rinnovo del token prima della scadenza, in memoria, senza ripetere automaticamente operazioni di scrittura.
+6. Account clienti: rinnovo concorrente unificato, errori di rete non trasformati silenziosamente in checkout ospite, protezione dai clic ripetuti e cancellazione della lista ordini al logout.
+7. Il timer della homepage non riparte inutilmente durante il ricaricamento periodico del catalogo a slide invariata; nessuna modifica alle immagini, al tempo di rotazione o alla dissolvenza della V45.
+8. Campo nome nel checkout: eliminato il placeholder Demo, abilitato il completamento automatico del nome.
+
+VERIFICHE
+- Node --check su tutti i file JS e script inline: OK.
+- Riferimenti statici script, CSS, immagini e ID HTML duplicati: OK.
+- Test unitari isolati con dati simulati: validazione carrello (quantità frazionarie non valide, prodotto mancante, stock insufficiente, prodotto nascosto), sessione cliente (rinnovi concorrenti, logout, errore rete), tracking (conservazione URL privato e rendering): OK.
+- Collaudo visivo integrato: non eseguito, Chromium blocca le navigazioni con ERR_BLOCKED_BY_ADMINISTRATOR.
+- Nessun accesso o modifica al database reale; SQL identico alla V45. Integrazioni esterne e verifiche dispositivi reali restano da completare.
+
+INSTALLAZIONE
+Estrarre in una cartella nuova. Per il deploy utilizzare SITO_NETLIFY. Non rieseguire SQL 04 se già installato. Mantenere gli ordini chiusi fino al collaudo reale.

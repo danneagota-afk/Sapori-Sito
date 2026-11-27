@@ -1,0 +1,30 @@
+SAPORI RUMENI — V50 | PERFEZIONAMENTO CLIENTI E MANAGER
+
+Se hai già installato SQL 04 non ripeterlo: V50 non richiede modifiche SQL.
+Estrai il pacchetto in una nuova cartella. Apri SITO_NETLIFY/index.html per vedere la grafica. Per il collaudo degli account, del checkout e del tracking usa un progetto Netlify di anteprima separato con HTTPS. Carica soltanto SITO_NETLIFY. Non sostituire ancora il dominio pubblico.
+Le funzioni del profilo utilizzano i metadati personali di Supabase Auth (non per assegnare permessi). La preferenza promozionale non invia email. Mantieni gli ordini chiusi fino alla verifica reale.
+Consulta DOCUMENTAZIONE/AGGIORNAMENTO_V50.txt.
+
+--- ISTRUZIONI STORICHE PER INSTALLAZIONE INIZIALE (V42) ---
+V49 — Aggiornamento grafico e area clienti. Se hai già installato SQL 04, non rieseguirlo. Usa la nuova cartella SITO_NETLIFY. Il minimo password cliente nel codice è 8: verifica anche le impostazioni Auth di Supabase e gli URL di redirect. Dettagli in DOCUMENTAZIONE/AGGIORNAMENTO_V49.txt.
+
+SAPORI RUMENI — V42 CLOUD | SVILUPPO INTEGRATO, NON ANCORA PRONTO ALLA VENDITA
+
+La V42 è una nuova base funzionale costruita sulla V41. Mantiene le pagine, le categorie, il design, il logo e il progetto Supabase già configurato. Non tutte le 114 richieste sono concluse: consulta DOCUMENTAZIONE/STATO_114_FUNZIONI.txt.
+
+1. Conserva una copia della V41 e fai un backup del database prima dell'aggiornamento. Non cancellare account o tabelle. Gli ordini restano chiusi dopo la migrazione.
+2. Nel progetto Supabase già esistente vai in SQL Editor > New query. Apri SUPABASE/04_AGGIORNAMENTO_V42.sql con Blocco note, copia tutto e premi Run. Esito previsto: SAPORI RUMENI — V42 DATABASE INSTALLATO, ORDINI CHIUSI. Non rieseguire 01–03: sono conservati solo per riferimento. La correzione categorie della V41 è inclusa nella 04 per i prodotti originali. La migrazione è in una transazione; se si verifica un errore non proseguire con la pubblicazione, annota il messaggio e controlla che sia avvenuto il rollback. Non ho eseguito lo SQL contro il tuo database.
+3. Facoltativo: esegui SUPABASE/05_CONTROLLI_LETTURA.sql (solo lettura).
+4. Pubblica SOLO la cartella SITO_NETLIFY su un progetto di anteprima Netlify separato da quello pubblico. Non caricare la cartella SUPABASE, i documenti o l'intero pacchetto come sito. Non modificare ancora il dominio saporirumeni.it. Usa HTTPS: alcune API del browser, l'autenticazione, la PWA e l'invio dell'ordine richiedono un contesto sicuro. Il file locale è utile per vedere la grafica, ma non è il collaudo definitivo.
+5. Apri l'URL temporaneo Netlify per il sito clienti; /staff/ per il Manager; /account.html per l'account cliente; /track.html per la ricerca con codice privato. Usa l'account titolare Supabase già creato. Non serve Python. Non inserire chiavi secret/service_role o password nel sito.
+6. Nelle impostazioni Auth di Supabase configura le URL autorizzate di redirect per la pagina /account.html dell'anteprima e, in seguito, del dominio definitivo. Il recupero password e la registrazione richiedono configurazione e verifica delle email Auth; non si presume che il provider gratuito possa inviare a tutti i clienti. Configura SMTP e protezione contro gli abusi prima del lancio.
+7. Collauda con dati di prova e verifica separatamente le scorte. Gli ordini reali devono restare chiusi: prima completa foto, prezzi, formati, dati alimentari, condizioni di vendita, privacy e controllo fiscale. Verifica in particolare coppa, costine, montone, lonza e pancetta: il precedente sito riportava formati di 500 g, mentre il nuovo catalogo ha unità kg da controllare. Non sono stati modificati prezzi o unità automaticamente.
+8. Nel Manager > Impostazioni sito il titolare può configurare orari, capacità, festività, CAP, giornate di partenza, bonifico, banner, contenuti e apertura ordini. Non abilitare le spedizioni senza corriere refrigerato, tariffe e condizioni concordate. Le spedizioni sono programmate; la partenza stimata non è la consegna garantita. Il cliente riceve un link privato per seguire l'ordine. Le notifiche in app sono registrate; email, push e WhatsApp NON vengono inviate automaticamente. Pagamenti in negozio e bonifico sono manuali; nessun addebito o rimborso online è eseguito dalla V42.
+9. Prima della pubblicazione definitiva: test funzionali, test RLS con utenti anonimi/clienti/staff, test concorrenza, rate limiting/CAPTCHA, backup/ripristino, accessibilità, prove su iPhone e Android reali, configurazione fiscale, approvazione dei testi legali. Rimuovere il noindex dal solo sito pubblico soltanto al lancio. Mantenere noindex e accesso protetto per staff e pagine private.
+
+TEST E LIMITI
+- Sintassi JavaScript controllata con Node; test Chromium mobile con DOM e API simulate: catalogo, aggiunta al carrello, ritiro, dati, quotazione, invio, conferma, apertura di tutte le 15 sezioni del Manager. Nessun errore JavaScript rilevato in quel percorso.
+- Navigazione HTTP reale locale bloccata dall'ambiente di test; SQL PostgreSQL/Supabase non eseguito qui, non è stata provata alcuna scrittura sul tuo database. Non sono stati collaudati i provider di pagamento, le email reali o i telefoni fisici. Non è una certificazione di sicurezza né una versione di produzione.
+- Il progetto usa la chiave pubblicabile già presente nella V41. Non contiene chiavi private aggiunte.
+- I dati esistenti sono preservati: la migrazione aggiunge campi e tabelle, corregge categorie originali, elimina solo sette abbinamenti immagine noti come errati (se il valore coincide), e chiude temporaneamente gli ordini. I prezzi, le scorte e gli account non vengono azzerati.
+- Le integrazioni e funzioni mancanti sono specificate nella documentazione, senza finte schermate operative o false conferme di invio.

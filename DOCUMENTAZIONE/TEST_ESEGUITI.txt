@@ -1,0 +1,6 @@
+TEST ESEGUITI V42
+1. Node --check: tutti gli script JavaScript e gli script inline del sito (sintassi).
+2. Chromium headless viewport 390×844: DOM e risposte API simulate, nessuna connessione al database reale. Catalogo, aggiunta al carrello, apertura checkout, dati contatto, fascia ritiro, quotazione server simulata, consenso, invio singolo, conferma e link tracking. Nessun errore JS osservato nel percorso.
+3. Chromium con autenticazione staff simulata: apertura Panoramica, Ordini, Prodotti e magazzino, Calendario, Preparazione, Spedizioni, Pagamenti, Clienti, Registri interni, Statistiche, Notifiche, Impostazioni, Staff, Promozioni, Recensioni, Registro attività (15 sezioni oltre alla Panoramica). Nessun errore JS osservato nel percorso testato.
+4. Nessun test PostgreSQL effettivo: server PostgreSQL non disponibile nell'ambiente; migrazione e operazioni RPC richiedono collaudo reale, in particolare concorrenza, atomicità, autorizzazioni, RLS, pagamento e scarico scorte.
+5. Accesso HTTP locale tramite browser bloccato dalle regole dell'ambiente. Il test DOM ha usato contenuto locale in memoria e mock; non è una verifica di rete, CSS/immagini reali o installazione PWA. Nessun telefono fisico o integrazione provider è stato usato.

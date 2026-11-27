@@ -1,0 +1,3 @@
+V42 — correzione titoli e favicon
+Titoli delle pagine clienti in italiano/rumeno, titoli delle sezioni staff e icona del browser.
+Nessuna modifica al database: non rieseguire SQL se gia installato.

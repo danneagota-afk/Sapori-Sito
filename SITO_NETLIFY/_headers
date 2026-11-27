@@ -1,0 +1,15 @@
+/*
+  X-Content-Type-Options: nosniff
+  Referrer-Policy: no-referrer
+  X-Robots-Tag: noindex, nofollow
+  Cache-Control: no-cache
+  Permissions-Policy: geolocation=(), microphone=()
+/staff/*
+  X-Frame-Options: DENY
+  Cache-Control: no-store
+/account.html
+  X-Frame-Options: DENY
+  Cache-Control: no-store
+/track.html
+  X-Frame-Options: DENY
+  Cache-Control: no-store

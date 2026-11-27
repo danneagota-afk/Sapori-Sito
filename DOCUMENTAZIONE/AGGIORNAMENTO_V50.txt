@@ -1,0 +1,22 @@
+V50 — interventi mirati sulla V49
+
+IMPLEMENTATO NEL CODICE
+- Area personale: schede ordini, dati personali, fino a 5 indirizzi italiani, preferenze email facoltative. Dati salvati via Supabase Auth user_metadata.sr_profile dell'utente autenticato; nessun ruolo o permesso deriva da questi metadati. Non sono modificati email/password o ruoli esistenti. Le preferenze non attivano invii e non rappresentano una soluzione completa di gestione del consenso per una futura campagna.
+- Checkout: precompilazione nome e telefono se vuoti per account autenticato e scelta esplicita di un indirizzo salvato per spedizione. Restano validazioni server, acquisto ospite, pagamento esistente, verifica del CAP e 24 ore.
+- Tracking: pagina coerente con la grafica cliente, stato operativo, modalità, pagamento separato, data di ritiro o partenza, link privato copiabile, refresh automatico quando aperta, IT/RO, gestione codice non valido e risposte obsolete. Non espone nuovi dati personali; non include righe prodotti poiché sr_track attuale non le restituisce.
+- Manager: collegamenti operativi rapidi, conteggio ordini con saldo e ritiri con data trascorsa, ora italiana, protezione contro risposte di refresh obsolete e pulizia dei dati al logout, refresh sospeso quando scheda nascosta, ulteriore protezione CSV da formule.
+- Nessuna modifica alla grafica e alle funzioni hero, TikTok, quattro categorie, footer, foto prodotto e tabelle SQL.
+
+TEST V50
+- Node --check su tutti gli script JS esterni e inline: PASS.
+- Risoluzione riferimenti locali CSS/JS: PASS.
+- Chromium 390px con DOM in memoria e API simulate: modifica profilo, aggiunta indirizzo, preferenze, tracking IT/RO, codice non valido: PASS.
+- Apertura normale delle pagine su HTTP/HTTPS bloccata dall'ambiente; navigazione completa, checkout con profilo, nuovi comandi Manager e Supabase reale NON collaudati in questa versione.
+- Nessuna scrittura sul progetto Supabase reale. File SQL immutati.
+
+DA COMPLETARE PRIMA DEL LANCIO
+- Prova reale Netlify HTTPS, Auth signup/email/recovery, profilo su più dispositivi e checkout completo; verifica concorrenza e RLS.
+- Foto mancanti e informazioni alimentari verificabili, prezzi/formati da confermare.
+- Pagamenti elettronici, fiscalità, corriere, SMTP, push, WhatsApp, backup e ripristino, autenticazione multifattore, privacy e termini, SEO, test su telefoni reali.
+- Ulteriori funzioni richieste (es. report XLSX/PDF, ricette, lotti avanzati, CMS completo) non completate da V50.
+- Non attivare ordini reali fino a collaudo concluso.
