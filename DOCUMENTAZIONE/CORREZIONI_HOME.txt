@@ -1,7 +1,0 @@
-Correzioni homepage — V44
-Base: V42 Video Corretti. Il database, il gestionale, il checkout, l'account e il tracking non sono stati modificati.
-Rotazione automatica ogni 6 secondi, dissolvenza, pausa, selezione manuale e swipe. Rispetta la preferenza di movimento ridotto.
-Quattro categorie in homepage; formaggi rimane nel catalogo. Layout 4 colonne desktop, 2 mobile.
-Nessuna spunta nella scelta della lingua. Tre anteprime dei video originali immediatamente visibili; il normale pulsante Play carica i player TikTok (la scelta viene ricordata). Non viene simulato il consenso. La revoca rimane nel footer.
-Test DOM Chromium con servizi simulati: due passaggi consecutivi del timer, 4 categorie desktop e 2x2 mobile, tre anteprime e tre iframe dopo Play, navigazione Social. Riproduzione TikTok e autenticazione Supabase reali non verificate.
-Nessuna nuova migrazione SQL necessaria se SQL 04 è già installato.

@@ -1,6 +1,0 @@
-AGGIORNAMENTO V42 — VIDEO TIKTOK
-
-Eliminati i tre riquadri grigi. Prima del consenso, i tre video originali mostrano copertine ricavate dalla schermata fornita dal titolare, abbinate in ordine ai tre ID predefiniti. Per video sostituiti dal Manager non viene mostrata una copertina di un altro filmato.
-Consenso facoltativo nella schermata lingua o con un solo clic nella galleria, memorizzato in localStorage; revocabile dal footer. Dopo il consenso i tre player ufficiali sono caricati direttamente su homepage e Social, senza autoplay.
-Test Chromium con API simulate e richieste esterne bloccate: desktop 1366x900 e mobile 390x844, verifica copertine, consenso, tre iframe, navigazione, revoca, cambio lingua e selezione iniziale. Nessun errore JS rilevato nei test. Riproduzione TikTok reale non verificata: dipende da disponibilità della piattaforma e connessione.
-Nessuna migrazione SQL richiesta rispetto alla V42. Restano invariati gli altri prerequisiti al lancio.

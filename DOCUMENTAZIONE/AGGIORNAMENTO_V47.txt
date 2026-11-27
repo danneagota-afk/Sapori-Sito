@@ -1,5 +1,0 @@
-V47 — Footer e contatti
-Link Account e Tracciamento inseriti nella colonna Assistenza clienti; area cliccabile limitata al testo.
-Telefono predefinito +39 388 755 0000 con link tel, anche nella pagina Contatti. Un numero valido già configurato nel Manager ha precedenza. Orari mostrati solo se configurati.
-Preferenze video mantenute nella colonna Assistenza.
-Test: sintassi JavaScript, layout statico Chromium 1440 e 390 px; navigazione integrale bloccata dalle restrizioni del browser. Nessuna modifica SQL.

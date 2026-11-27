@@ -1,3 +1,0 @@
-V48 — Contatti e account nel checkout
-Conserva tutte le modifiche V47 al footer. Scelta account/ospite prima dei dati ordine. Accesso verificato, email precompilata e ordine associato via auth.uid(). Carrello salvato nel browser, ritorno al checkout dopo autenticazione. Registrazione e recupero dipendono da Supabase Auth, SMTP e URL di redirect autorizzati. Nessun invio promozionale automatico. Nessuna modifica SQL.
-Test: sintassi di tutti gli script, Chromium con HTML iniettato e API simulate (scelta ospite, dati ordine, accesso già attivo ed email precompilata). Nessun errore JS osservato in questi percorsi. Navigazione reale e ritorno da email non collaudati: browser blocca la navigazione di test.
