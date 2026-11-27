@@ -1,1 +1,0 @@
-if('serviceWorker' in navigator && ['https:','http:'].includes(location.protocol)){const script=document.currentScript;const base=new URL('.',script.src);navigator.serviceWorker.register(new URL('sw.js',base),{scope:base.pathname}).catch(console.warn);}
