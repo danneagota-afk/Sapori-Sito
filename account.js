@@ -1,181 +1,38 @@
-const $=id=>document.getElementById(id);
-const qp=new URLSearchParams(location.search);
-const hash=new URLSearchParams((location.hash||'').replace(/^#/,'').replace(/^\?/,'')||'');
-const params=hash.has('type')||hash.has('access_token')||hash.has('error')||hash.has('error_code')?hash:qp;
-const modeFromQuery=(qp.get('mode')||'').toLowerCase();
-let mode=modeFromQuery==='signup'?'signup':modeFromQuery==='recover'?'recover':'login';
-let accountLang=(localStorage.getItem('sr_lang')==='ro'?'ro':'it');
-let recoveryToken='';
-let confirmationPending=false;
-let currentUser=null,currentRows=null;
-let personalView='orders';
-
-function at(it,ro){return accountLang==='ro'?ro:it}
-function redirectPath(){return location.origin+location.pathname}
-function email(){return $('email').value.trim().toLowerCase()}
-function msg(t='',err=false){const m=$('msg');if(!t){m.hidden=true;m.textContent='';m.className='';return;}m.hidden=false;m.textContent=t;m.className=err?'error':''}
-function busy(fn){return async ev=>{ev?.preventDefault?.();const form=ev?.currentTarget?.closest?.('form')||ev?.currentTarget?.form||ev?.currentTarget;const buttons=form?form.querySelectorAll('button'):[];buttons.forEach(b=>b.disabled=true);try{await fn(ev)}catch(e){msg(friendly(e),true)}finally{buttons.forEach(b=>b.disabled=false)}}}
-function friendly(e){const raw=String(e?.message||e||'');const lower=raw.toLowerCase();
-  if(lower.includes('invalid login')||lower.includes('invalid_credentials'))return at('Email o password non corretti.','E-mail sau parolă incorecte.');
-  if(lower.includes('email not confirmed'))return at('Controlla la tua email e conferma il tuo account.','Verifică emailul și confirmă contul.');
-  if(lower.includes('user already registered'))return at('Esiste già un account con questa email. Prova ad accedere.','Există deja un cont cu acest e-mail. Încearcă să te autentifici.');
-  if(lower.includes('password should be'))return at('La password deve avere almeno 8 caratteri.','Parola trebuie să aibă cel puțin 8 caractere.');
-  if(lower.includes('network')||lower.includes('fetch'))return at('Connessione non disponibile. Riprova tra poco.','Conexiunea nu este disponibilă. Încearcă din nou.');
-  return raw||at('Operazione non riuscita.','Operațiune nereușită.');
-}
-function setText(id,it,ro){const n=$(id); if(n)n.textContent=at(it,ro)}
-function setMode(next,clear=true){
-  mode=next;
-  const guest=$('guest'), account=$('account'), recovery=$('recovery');
-  const signed=next==='signed';
-  $('shell').classList.toggle('signed',signed);
-  guest.hidden=signed||next==='reset';
-  account.hidden=!signed;
-  recovery.hidden=next!=='reset';
-  $('tab-login').setAttribute('aria-selected',String(next!=='signup'));
-  $('tab-signup').setAttribute('aria-selected',String(next==='signup'));
-  $('tab-login').disabled=next==='login';
-  $('tab-signup').disabled=next==='signup';
-  $('confirm-group').hidden=next!=='signup';
-  $('confirm').disabled=next!=='signup';
-  $('password-hint').hidden=next!=='signup';
-  $('recover').hidden=next==='signup';
-  $('back-login').hidden=next!=='signup';
-  $('login-submit').textContent=next==='signup'?at('Crea account','Creează cont'):at('Accedi','Autentifică-te');
-  $('account-title').textContent= signed
-    ? at('Il tuo account.','Contul tău.')
-    : next==='signup'
-      ? at('Crea il tuo account.','Creează-ți contul.')
-      : next==='reset'
-        ? at('Imposta una nuova password.','Setează o parolă nouă.')
-        : at('Bentornato.','Bine ai revenit.');
-  $('account-lead').textContent=signed
-    ? at('Gestisci ordini, dati e indirizzo in un unico spazio elegante.','Gestionezi comenzile, datele și adresa într-un singur spațiu elegant.')
-    : next==='signup'
-      ? at('Registrati per seguire i tuoi ordini e riutilizzare i tuoi dati al checkout.','Înregistrează-te pentru a urmări comenzile și a refolosi datele la finalizarea comenzii.')
-      : next==='reset'
-        ? at('Inserisci la tua nuova password per rientrare nel tuo account.','Introdu noua parolă pentru a reintra în cont.')
-        : at('Accedi per ritrovare ordini, dati e preferenze.','Autentifică-te pentru a regăsi comenzile, datele și preferințele.');
-  $('guest-note').textContent=at('Puoi acquistare anche senza registrarti.','Poți comanda și fără cont.');
-  syncConfirmation();
-  if(clear) msg();
-}
-function syncConfirmation(){
-  const box=$('confirmation-actions');
-  box.hidden=!confirmationPending;
-  if(!confirmationPending)return;
-  $('confirmation-login').textContent=at('Accedi','Autentifică-te');
-  $('confirmation-resend').textContent=at('Invia di nuovo la conferma','Trimite din nou confirmarea');
-  $('confirmation-hint').textContent=at('Se l’email non arriva, controlla anche spam o promozioni.','Dacă e-mailul nu ajunge, verifică și spam sau promoții.');
-}
-function validatePassword(pw,confirm){
-  if(String(pw).length<8) throw Error(at('La password deve avere almeno 8 caratteri.','Parola trebuie să aibă minimum 8 caractere.'));
-  if(confirm!=null && pw!==confirm) throw Error(at('Le password non coincidono.','Parolele nu coincid.'));
-}
-function toggleReveal(btnId,inputId){const b=$(btnId),i=$(inputId); if(!b||!i)return; b.onclick=()=>{const show=i.type==='password'; i.type=show?'text':'password'; b.textContent=show?at('Nascondi','Ascunde'):at('Mostra','Arată')}}
-function applyTranslations(){
-  document.documentElement.lang=accountLang==='ro'?'ro':'it';
-  $('language').textContent=accountLang==='ro'?'IT':'RO';
-  $('language').ariaLabel=accountLang==='ro'?'Italiano':'Română';
-  setText('checkout-return','← Torna al negozio','← Înapoi la magazin');
-  setText('tab-login','Accedi','Autentifică-te');
-  setText('tab-signup','Registrati','Înregistrează-te');
-  document.querySelector('[for=email]').textContent=at('E-mail','E-mail');
-  document.querySelector('[for=password]').textContent=at('Password','Parolă');
-  document.querySelector('[for=confirm]').textContent=at('Conferma password','Confirmă parola');
-  document.querySelector('#recovery [for=newpassword]').textContent=at('Nuova password','Parolă nouă');
-  document.querySelector('#recovery [for=newconfirm]').textContent=at('Conferma password','Confirmă parola');
-  document.querySelectorAll('[data-t=passwordHint]').forEach(n=>n.textContent=at('Almeno 8 caratteri.','Minimum 8 caractere.'));
-  $('recover').textContent=at('Password dimenticata?','Ai uitat parola?');
-  $('back-login').textContent=at('← Torna all’accesso','← Înapoi la autentificare');
-  $('shop-link').textContent=at('Vai al negozio','Mergi la magazin');
-  $('logout').textContent=at('Esci','Ieși');
-  setText('confirmation-login','Accedi','Autentifică-te');
-  setText('confirmation-resend','Invia di nuovo la conferma','Trimite din nou confirmarea');
-  setText('checkout-context','', '');
-  setMode(mode,false);
-  if(currentUser) renderPersonal();
-  if(Array.isArray(currentRows)) renderOrders(currentRows);
-}
-
-$('language').onclick=()=>{accountLang=accountLang==='it'?'ro':'it'; localStorage.setItem('sr_lang',accountLang); applyTranslations();};
-$('tab-login').onclick=()=>setMode('login');
-$('tab-signup').onclick=()=>setMode('signup');
-$('back-login').onclick=()=>setMode('login');
-$('recover').onclick=busy(async()=>{const address=email(); if(!address) throw Error(at('Inserisci prima la tua email.','Introdu mai întâi e-mailul.')); await srRequest('/auth/v1/recover?redirect_to='+encodeURIComponent(redirectPath()),{email:address}); setMode('login'); msg(at('Ti abbiamo inviato un link per cambiare password.','Ți-am trimis un link pentru schimbarea parolei.'));});
-
-toggleReveal(document.querySelector('[data-reveal="password"]')?.id||'', 'password');
-// fallback because reveal buttons do not have ids in html
-Array.from(document.querySelectorAll('.reveal')).forEach(btn=>{const inputId=btn.dataset.reveal; btn.onclick=()=>{const input=$(inputId); const show=input.type==='password'; input.type=show?'text':'password'; btn.textContent=show?at('Nascondi','Ascunde'):at('Mostra','Arată')}});
-
-$('login').onsubmit=busy(async()=>{
-  const address=email(); if(!address) throw Error(at('Inserisci una email valida.','Introdu un e-mail valid.'));
-  const pw=$('password').value;
-  if(mode==='signup'){
-    validatePassword(pw,$('confirm').value);
-    await srRequest('/auth/v1/signup?redirect_to='+encodeURIComponent(redirectPath()),{email:address,password:pw,data:{language:accountLang}});
-    confirmationPending=true; syncConfirmation();
-    $('password').value=''; $('confirm').value='';
-    msg(at('Registrazione inviata. Controlla la tua email per confermare l’account.','Înregistrarea a fost trimisă. Verifică e-mailul pentru a confirma contul.'));
-    return;
-  }
-  let r;
-  try{r=await srRequest('/auth/v1/token?grant_type=password',{email:address,password:pw});}
-  catch(e){ if(/email not confirmed/i.test(String(e.message))){confirmationPending=true; syncConfirmation();} throw e; }
-  if(!r?.access_token) throw Error(at('Accesso non riuscito.','Autentificare nereușită.'));
-  srAccountSave(r); $('password').value=''; await show();
-});
-$('confirmation-login').onclick=()=>setMode('login');
-$('confirmation-resend').onclick=busy(async()=>{ await srRequest('/auth/v1/resend?redirect_to='+encodeURIComponent(redirectPath()),{type:'signup',email:email()}); msg(at('Se l’account attende conferma, riceverai un nuovo link.','Dacă există un cont în așteptarea confirmării, vei primi un link nou.')); });
-$('logout').onclick=busy(async()=>{ try{const token=await srAccountToken(); if(token) await srRequest('/auth/v1/logout',{},token)} finally {srAccountSave(null); currentUser=null; currentRows=null; personalView='orders'; $('profile-view').replaceChildren(); $('orders').replaceChildren(); setMode('login'); msg(at('Hai effettuato la disconnessione.','Te-ai deconectat.'));}});
-$('recovery').onsubmit=busy(async()=>{
-  if(!recoveryToken) throw Error(at('Link scaduto. Richiedine uno nuovo.','Link expirat. Cere unul nou.'));
-  const pw=$('newpassword').value; validatePassword(pw,$('newconfirm').value);
-  const r=await fetch(SR_SUPABASE.url+'/auth/v1/user',{method:'PUT',headers:{apikey:SR_SUPABASE.key,Authorization:'Bearer '+recoveryToken,'Content-Type':'application/json'},body:JSON.stringify({password:pw})});
-  const j=await r.json().catch(()=>({}));
-  if(!r.ok) throw Error(j.message||j.msg||at('Aggiornamento non riuscito.','Actualizare nereușită.'));
-  try{await srRequest('/auth/v1/logout',{},recoveryToken)}catch{}
-  recoveryToken=''; srAccountSave(null); $('recovery').reset(); setMode('login'); msg(at('Password aggiornata. Accedi di nuovo.','Parolă actualizată. Autentifică-te din nou.'));
-});
-
-const el=(tag,txt,cls)=>{const n=document.createElement(tag); if(txt!=null) n.textContent=txt; if(cls) n.className=cls; return n};
-function status(s){const labels={'Da confermare':'De confirmat','Confermata':'Confirmată','In preparazione':'În pregătire','Pronta':'Pregătită','Spedita':'Expediată','Ritirata':'Ridicată','Consegnata':'Livrată','Annullata':'Anulată'}; return accountLang==='ro'?(labels[s]||s):s}
-function renderOrders(rows){
-  const target=$('orders'); target.replaceChildren();
-  if(!rows.length){ target.append(el('p',at('Non hai ancora ordini associati a questo account.','Nu ai încă nicio comandă asociată acestui cont.'))); return; }
-  rows.forEach(o=>{
-    const card=el('article',null,'order');
-    const top=el('div',null,'order-top');
-    top.append(el('strong',status(o.status)),el('strong',Number(o.total||0).toLocaleString(accountLang==='ro'?'ro-RO':'it-IT',{style:'currency',currency:'EUR'})));
-    card.append(top,el('p',o.id));
-    if(o.created_at&&Number.isFinite(Date.parse(o.created_at))) card.append(el('small',new Date(o.created_at).toLocaleString(accountLang==='ro'?'ro-RO':'it-IT',{timeZone:'Europe/Rome',dateStyle:'medium',timeStyle:'short'})));
-    if(o.trackingToken){const a=el('a',at('Segui il tuo ordine →','Urmărește comanda →')); a.href='track.html#'+encodeURIComponent(o.trackingToken); card.append(a)}
-    (Array.isArray(o.products)?o.products:[]).forEach(pr=>{
-      card.append(el('p',(pr[accountLang]||pr.it||pr.ro||'')+' × '+pr.qty));
-      if(['Ritirata','Consegnata'].includes(o.status)){
-        const details=el('details'); const summary=el('summary',at('Scrivi una recensione','Scrie o recenzie')); const f=el('form',null,'stack');
-        const label=el('label',at('Voto','Notă')); const select=el('select'); select.name='stars'; [5,4,3,2,1].forEach(n=>select.append(el('option',String(n)))); label.append(select);
-        const bodyLabel=el('label',at('Recensione','Recenzie')); const ta=el('textarea'); ta.name='body'; ta.required=true; ta.maxLength=1500; bodyLabel.append(ta);
-        const submit=el('button',at('Invia recensione','Trimite recenzia')); f.append(label,bodyLabel,submit);
-        f.onsubmit=busy(async()=>{const fd=new FormData(f); await srRequest('/rest/v1/rpc/sr_submit_review',{p:{product_id:pr.id,stars:Number(fd.get('stars')),body:fd.get('body')}},await srAccountToken()); f.reset(); msg(at('Recensione inviata per moderazione.','Recenzia a fost trimisă pentru moderare.'));});
-        details.append(summary,f); card.append(details);
-      }
-    });
-    target.append(card);
-  })
-}
-async function show(){
-  const token=await srAccountToken(); if(!token) return;
-  const u=await srRequest('/auth/v1/user',undefined,token); if(!u?.id) throw Error(at('Sessione non valida.','Sesiune nevalidă.'));
-  currentUser=u; currentRows=null; $('user-email').textContent=u.email||''; setMode('signed'); renderPersonal(); $('orders').textContent=at('Caricamento ordini…','Se încarcă comenzile…');
-  try{const rows=await srRequest('/rest/v1/rpc/sr_my_orders',{},token); if(!Array.isArray(rows)) throw Error(at('Ordini non disponibili.','Comenzi indisponibile.')); currentRows=rows; renderOrders(rows);}catch(e){ $('orders').textContent=at('Non è stato possibile caricare gli ordini. Ricarica la pagina per riprovare.','Comenzile nu au putut fi încărcate. Reîncarcă pagina pentru a încerca din nou.'); msg(friendly(e),true); }
-}
+'use strict';
+const $=id=>document.getElementById(id), query=new URLSearchParams(location.search), params=new URLSearchParams(location.hash.slice(1)), checkout=query.get('checkout')==='1';
+let accountLang='it';try{accountLang=localStorage.getItem('sr_language')==='ro'?'ro':'it'}catch{};
+const at=(it,ro)=>accountLang==='ro'?ro:it;
+const dict={eyebrow:['SAPORI RUMENI','SAPORI RUMENI'],area:['AREA CLIENTI','CONTUL MEU'],visualTitle:['Il gusto di casa.','Gustul de acasă.'],visualText:['Le tue specialità preferite, sempre a portata di mano.','Specialitățile tale preferate, mereu la îndemână.'],login:['Accedi','Autentifică-te'],signup:['Registrati','Înregistrează-te'],email:['Email','E-mail'],password:['Password','Parolă'],passwordHint:['Almeno 8 caratteri.','Minimum 8 caractere.'],confirm:['Conferma password','Confirmă parola'],forgot:['Password dimenticata?','Ai uitat parola?'],backLogin:['← Torna all’accesso','← Înapoi la autentificare'],newPassword:['Nuova password','Parolă nouă'],savePassword:['Salva password','Salvează parola'],logout:['Esci','Deconectare'],shop:['Vai al negozio','Mergi la magazin'],orders:['I tuoi ordini','Comenzile tale'],track:['Segui un altro ordine','Urmărește altă comandă'],guest:['Puoi acquistare anche senza registrarti.','Poți comanda și fără cont.']};
+let mode=['signup','recover'].includes(query.get('mode'))?query.get('mode'):'login', recoveryToken=null, accountBusy=false, confirmationPending=false, currentUser=null, currentRows=null;
+function msg(text='',error=false){const el=$('msg');const local=$('profile-status');const target=mode==='signed'&&personalView!=='orders'&&local?local:el;for(const n of [el,local].filter(Boolean)){n.hidden=true;n.textContent='';}target.textContent=text;target.hidden=!text;target.classList.toggle('error',error);}
+function syncLanguage(){document.documentElement.lang=accountLang;syncConfirmation();document.title=at('Area clienti','Contul meu')+' | Sapori Rumeni';document.querySelectorAll('[data-t]').forEach(el=>{const v=dict[el.dataset.t];if(v)el.textContent=at(...v)});$('language').textContent=at('RO','IT');$('language').setAttribute('aria-label',at('Română','Italiano'));$('checkout-return').href=checkout?'index.html?checkout=1#shop':'index.html#home';$('checkout-return').textContent=checkout?at('← Torna al carrello','← Înapoi la coș'):at('← Torna al negozio','← Înapoi la magazin');$('shop-link').href=checkout?'index.html?checkout=1#shop':'index.html#shop';if(checkout)$('shop-link').textContent=at('Continua con il tuo ordine','Continuă comanda');$('checkout-context').hidden=!checkout||mode==='reset';$('checkout-context').textContent=currentUser?at('Accesso effettuato. Continua al carrello per associare l’ordine al tuo account.','Te-ai autentificat. Revino la coș pentru a asocia comanda contului tău.'):at('Il tuo carrello rimane salvato su questo dispositivo.','Coșul tău rămâne salvat pe acest dispozitiv.');if(mode==='signed'){ $('account-title').textContent=at('Il tuo account.','Contul tău.');$('account-lead').textContent=at('Consulta e segui i tuoi ordini.','Consultă și urmărește comenzile tale.');if(currentRows)renderOrders(currentRows);renderPersonal();}else if(mode==='reset'){ $('account-title').textContent=at('Nuova password.','Parolă nouă.');$('account-lead').textContent=at('Scegli una nuova password per il tuo account.','Alege o parolă nouă pentru contul tău.');}else{const signup=mode==='signup',recover=mode==='recover';$('account-title').textContent=signup?at('Crea il tuo account.','Creează contul tău.'):recover?at('Recupera la password.','Recuperează parola.'):at('Bentornato.','Bine ai revenit.');$('account-lead').textContent=signup?at('Ritrova i tuoi ordini e segui ogni acquisto.','Regăsește comenzile și urmărește fiecare achiziție.'):recover?at('Inserisci la tua email per ricevere il link di recupero.','Introdu adresa de e-mail pentru a primi linkul de recuperare.'):at('Accedi per ritrovare e seguire i tuoi ordini.','Autentifică-te pentru a regăsi și urmări comenzile tale.');$('login-submit').textContent=signup?at('Crea account','Creează cont'):recover?at('Invia link di recupero','Trimite linkul de recuperare'):at('Accedi','Autentifică-te');}document.querySelectorAll('[data-reveal]').forEach(updateReveal);}
+function syncConfirmation(){const box=$('confirmation-actions');box.hidden=!confirmationPending||mode==='signed'||mode==='reset';$('confirmation-login').textContent=at('Vai all’accesso','Mergi la autentificare');$('confirmation-resend').textContent=at('Invia di nuovo la conferma','Retrimite confirmarea');$('confirmation-hint').textContent=at('Controlla anche lo spam. Se hai già un account, accedi o recupera la password.','Verifică și dosarul spam. Dacă ai deja un cont, autentifică-te sau recuperează parola.');}
+function updateReveal(btn){const shown=$(btn.dataset.reveal).type==='text';btn.textContent=shown?at('Nascondi','Ascunde'):at('Mostra','Arată');btn.setAttribute('aria-label',shown?at('Nascondi password','Ascunde parola'):at('Mostra password','Arată parola'));btn.setAttribute('aria-pressed',String(shown));}
+function setMode(next,clear=true){mode=next;if(clear)confirmationPending=false;const signed=next==='signed',reset=next==='reset',signup=next==='signup',recover=next==='recover';$('guest').hidden=signed||reset;$('account').hidden=!signed;$('recovery').hidden=!reset;$('shell').classList.toggle('signed',signed);$('guest-note').hidden=signed||reset;$('tabs').hidden=recover;$('tab-login').setAttribute('aria-selected',String(next==='login'));$('tab-signup').setAttribute('aria-selected',String(signup));$('password-group').hidden=recover;$('password').disabled=recover;$('password').required=!recover;$('password').autocomplete=signup?'new-password':'current-password';if(signup)$('password').minLength=8;else $('password').removeAttribute('minlength');$('confirm-group').hidden=!signup;$('confirm').disabled=!signup;$('confirm').required=signup;$('confirm').minLength=8;$('password-hint').hidden=!signup;$('recover').hidden=next!=='login';$('back-login').hidden=!recover;if(clear){$('password').value='';$('confirm').value='';msg();}syncLanguage();}
+function redirectPath(){if(location.protocol!=='https:'&&location.hostname!=='localhost'&&location.hostname!=='127.0.0.1')throw Error(at('Apri il sito pubblicato con HTTPS per continuare.','Deschide site-ul publicat prin HTTPS pentru a continua.'));const u=new URL('account.html',location.href);if(checkout)u.searchParams.set('checkout','1');return u.href;}
+function email(){const e=$('email');if(!e.reportValidity())throw Error(at('Inserisci un indirizzo email valido.','Introdu o adresă de e-mail validă.'));return e.value.trim();}
+function validatePassword(p,c){if(p.length<8)throw Error(at('Scegli una password di almeno 8 caratteri.','Alege o parolă de minimum 8 caractere.'));if(p!==c)throw Error(at('Le password non coincidono.','Parolele nu coincid.'));}
+function friendly(e){const s=String(e?.message||'');if(/email address not authorized|email.*not allowed|smtp|error sending.*email/i.test(s))return at('Invio email momentaneamente non disponibile. Contatta il negozio o riprova più tardi.','Trimiterea e-mailului nu este disponibilă momentan. Contactează magazinul sau încearcă mai târziu.');if(/user already registered|already.*registered/i.test(s))return at('Se hai già un account, accedi o recupera la password.','Dacă ai deja un cont, autentifică-te sau recuperează parola.');if(/invalid login credentials/i.test(s))return at('Email o password non corrette.','E-mail sau parolă incorectă.');if(/email not confirmed/i.test(s))return at('Conferma prima il tuo indirizzo email.','Confirmă mai întâi adresa de e-mail.');if(/rate limit|too many/i.test(s)||e?.status===429)return at('Troppi tentativi. Riprova tra qualche minuto.','Prea multe încercări. Încearcă din nou peste câteva minute.');if(/password.*(weak|least|characters|length)/i.test(s))return at('La password non soddisfa i requisiti di sicurezza del servizio. Scegline una più sicura.','Parola nu îndeplinește cerințele de securitate. Alege una mai sigură.');if(/failed to fetch|network|abort/i.test(s))return at('Connessione non disponibile. Riprova.','Conexiune indisponibilă. Încearcă din nou.');if(/expired|invalid.*token/i.test(s))return at('Sessione o link scaduto. Accedi nuovamente.','Sesiune sau link expirat. Autentifică-te din nou.');return s.includes(' / ')?s.split(' / ')[accountLang==='ro'?1:0]:s||at('Operazione non riuscita.','Operațiunea nu a reușit.');}
+function busy(fn){return async e=>{e?.preventDefault();if(accountBusy)return;accountBusy=true;const buttons=[...document.querySelectorAll('button:not(:disabled)')];buttons.forEach(b=>b.disabled=true);try{msg(at('Attendi…','Așteaptă…'));await fn()}catch(err){msg(friendly(err),true)}finally{accountBusy=false;buttons.forEach(b=>b.disabled=false);}}}
+$('language').onclick=async()=>{if(accountBusy||!await dirtyPrompt())return;profileDirty=false;accountLang=accountLang==='it'?'ro':'it';try{localStorage.setItem('sr_language',accountLang)}catch{}msg();syncLanguage();};$('tab-login').onclick=()=>setMode('login');$('tab-signup').onclick=()=>setMode('signup');$('recover').onclick=()=>setMode('recover');$('back-login').onclick=()=>setMode('login');document.querySelectorAll('[data-reveal]').forEach(b=>b.onclick=()=>{const el=$(b.dataset.reveal);el.type=el.type==='password'?'text':'password';updateReveal(b);});
+$('login').onsubmit=busy(async()=>{const address=email();if(mode==='recover'){await srRequest('/auth/v1/recover?redirect_to='+encodeURIComponent(redirectPath()),{email:address});msg(at('Se l’account è registrato, controlla la tua email per recuperare la password.','Dacă ai un cont, verifică e-mailul pentru recuperarea parolei.'));return}const pw=$('password').value;if(mode==='signup'){validatePassword(pw,$('confirm').value);const r=await srRequest('/auth/v1/signup?redirect_to='+encodeURIComponent(redirectPath()),{email:address,password:pw});$('password').value='';$('confirm').value='';if(r?.access_token){srAccountSave(r);await show()}else {confirmationPending=true;syncConfirmation();msg(at('Se l’indirizzo è nuovo, riceverai un link di conferma. Se hai già un account, accedi con la tua password.','Dacă adresa este nouă, vei primi un link de confirmare. Dacă ai deja un cont, autentifică-te cu parola ta.'));}return}let r;try{r=await srRequest('/auth/v1/token?grant_type=password',{email:address,password:pw});}catch(e){if(/email not confirmed/i.test(String(e.message))){confirmationPending=true;syncConfirmation();}throw e;}if(!r?.access_token)throw Error(at('Accesso non riuscito.','Autentificare nereușită.'));srAccountSave(r);$('password').value='';await show();});
+$('confirmation-login').onclick=()=>setMode('login');$('confirmation-resend').onclick=busy(async()=>{await srRequest('/auth/v1/resend?redirect_to='+encodeURIComponent(redirectPath()),{type:'signup',email:email()});msg(at('Se l’account attende conferma, riceverai un nuovo link.','Dacă există un cont în așteptarea confirmării, vei primi un link nou.'));});
+const performLogout=busy(async()=>{let remote=true;try{const token=await srAccountToken();if(token)await srRequest('/auth/v1/logout?scope=local',{},token)}catch{remote=false;}finally{srAccountSave(null);currentUser=null;currentRows=null;profileDirty=false;personalView='orders';$('profile-view').replaceChildren();$('orders').replaceChildren();$('email').value='';setMode('login');msg(remote?at('Hai effettuato la disconnessione.','Te-ai deconectat.'):at('Sei uscito da questa sessione. Non è stato possibile revocarla sul server.','Ai ieșit din această sesiune. Revocarea pe server nu a reușit.'));}});
+$('logout').onclick=async()=>{if(accountBusy)return;const ok=await srConfirm(at('Vuoi uscire dal tuo account?','Sigur vrei să ieși din cont?'),profileDirty?at('Le modifiche non salvate andranno perse. Il carrello rimarrà salvato.','Modificările nesalvate se vor pierde. Coșul va rămâne salvat.'):at('Potrai accedere di nuovo quando vuoi. Il carrello rimarrà salvato.','Te poți autentifica din nou oricând. Coșul va rămâne salvat.'),at('Esci','Deconectează-te'),at('Rimani connesso','Rămâi conectat'));if(ok)await performLogout();};
+$('recovery').onsubmit=busy(async()=>{if(!recoveryToken)throw Error(at('Link scaduto. Richiedine uno nuovo.','Link expirat. Cere unul nou.'));const pw=$('newpassword').value;validatePassword(pw,$('newconfirm').value);const r=await fetch(SR_SUPABASE.url+'/auth/v1/user',{method:'PUT',headers:{apikey:SR_SUPABASE.key,Authorization:'Bearer '+recoveryToken,'Content-Type':'application/json'},body:JSON.stringify({password:pw})});if(!r.ok){const j=await r.json().catch(()=>({}));throw Error(j.message||j.msg||at('Aggiornamento non riuscito.','Actualizare nereușită.'));}try{await srRequest('/auth/v1/logout',{},recoveryToken)}catch{}recoveryToken=null;srAccountSave(null);$('recovery').reset();setMode('login');msg(at('Password aggiornata. Accedi di nuovo.','Parolă actualizată. Autentifică-te din nou.'));});
+const el=(tag,txt,cls)=>{const n=document.createElement(tag);if(txt!=null)n.textContent=txt;if(cls)n.className=cls;return n;};
+function status(s){const labels={'Da confermare':'De confirmat','Confermata':'Confirmată','In preparazione':'În pregătire','Pronta':'Pregătită','Spedita':'Expediată','Ritirata':'Ridicată','Consegnata':'Livrată','Annullata':'Anulată'};return accountLang==='ro'?(labels[s]||s):s;}
+function renderOrders(rows){const target=$('orders');target.replaceChildren();if(!rows.length){const empty=el('div',null,'empty-orders');empty.append(el('span','▤','empty-symbol'),el('h3',at('Nessun ordine, per ora','Nicio comandă deocamdată')),el('p',at('Qui troverai gli ordini associati al tuo account.','Aici vei găsi comenzile asociate contului tău.')));const a=el('a',at('Scopri il negozio','Descoperă magazinul'),'secondary-action');a.href='index.html#shop';empty.append(a);target.append(empty);return;}for(const o of rows){const card=el('article',null,'order'),top=el('div',null,'order-top');top.append(el('strong',status(o.status)),el('strong',Number(o.total).toLocaleString(accountLang==='ro'?'ro-RO':'it-IT',{style:'currency',currency:'EUR'})));card.append(top,el('p',o.id));if(o.created_at&&Number.isFinite(Date.parse(o.created_at)))card.append(el('small',new Date(o.created_at).toLocaleString(accountLang==='ro'?'ro-RO':'it-IT',{timeZone:'Europe/Rome',dateStyle:'medium',timeStyle:'short'})));if(o.trackingToken){const a=el('a',at('Segui il tuo ordine →','Urmărește comanda →'));a.href='track.html#'+encodeURIComponent(o.trackingToken);card.append(a);}for(const pr of Array.isArray(o.products)?o.products:[]){card.append(el('p',(pr[accountLang]||pr.it||pr.ro||'')+' × '+pr.qty));if(['Ritirata','Consegnata'].includes(o.status)){const details=el('details'),summary=el('summary',at('Scrivi una recensione','Scrie o recenzie')),f=el('form',null,'stack'),label=el('label',at('Voto','Notă')),select=el('select');select.name='stars';for(const n of [5,4,3,2,1])select.append(el('option',String(n)));label.append(select);const bodyLabel=el('label',at('Recensione','Recenzie')),ta=el('textarea');ta.name='body';ta.required=true;ta.maxLength=1500;bodyLabel.append(ta);const submit=el('button',at('Invia recensione','Trimite recenzia'));f.append(label,bodyLabel,submit);f.onsubmit=busy(async()=>{const fd=new FormData(f);await srRequest('/rest/v1/rpc/sr_submit_review',{p:{product_id:pr.id,stars:Number(fd.get('stars')),body:fd.get('body')}},await srAccountToken());f.reset();msg(at('Recensione inviata per moderazione.','Recenzia a fost trimisă pentru moderare.'));});details.append(summary,f);card.append(details);}}target.append(card);}}
+async function show(){const token=await srAccountToken();if(!token)return;const u=await srRequest('/auth/v1/user',undefined,token);if(!u?.id)throw Error(at('Sessione non valida.','Sesiune nevalidă.'));currentUser=u;currentRows=null;$('user-email').textContent=u.email||'';setMode('signed');$('orders').textContent=at('Caricamento ordini…','Se încarcă comenzile…');try{const rows=await srRequest('/rest/v1/rpc/sr_my_orders',{},token);if(!Array.isArray(rows))throw Error(at('Ordini non disponibili.','Comenzi indisponibile.'));currentRows=rows;renderOrders(rows);}catch(e){$('orders').textContent=at('Non è stato possibile caricare gli ordini. Ricarica la pagina per riprovare.','Comenzile nu au putut fi încărcate. Reîncarcă pagina pentru a încerca din nou.');msg(friendly(e),true);}}
+let personalView='orders', profileDirty=false;
+const dirtyPrompt=()=>!profileDirty?Promise.resolve(true):srConfirm(at('Modifiche non salvate','Modificări nesalvate'),at('Vuoi uscire da questa sezione senza salvare?','Vrei să părăsești secțiunea fără să salvezi?'),at('Abbandona modifiche','Renunță la modificări'),at('Continua a modificare','Continuă editarea'));
+window.addEventListener('beforeunload',e=>{if(profileDirty){e.preventDefault();e.returnValue='';}});
 
 function renderPersonal(){
   if(!currentUser) return;
-  const p=srProfileRead(currentUser), host=$('profile-view');
+  const p=srProfileRead(currentUser), host=$('profile-view');profileDirty=false;
   const names={orders:at('I miei ordini','Comenzile mele'), profile:at('Dati personali','Date personale'), addresses:at('Indirizzo','Adresă'), preferences:at('Comunicazioni','Comunicări')};
-  document.querySelectorAll('[data-view]').forEach(b=>{ b.textContent=names[b.dataset.view]; b.setAttribute('aria-pressed',String(b.dataset.view===personalView)); b.onclick=()=>{personalView=b.dataset.view; msg(); renderPersonal()}; });
+  document.querySelectorAll('[data-view]').forEach(b=>{ b.replaceChildren();const icon=el('span',({orders:'▤',profile:'○',addresses:'⌖',preferences:'✉'})[b.dataset.view],'nav-symbol');icon.setAttribute('aria-hidden','true');b.append(icon,el('span',names[b.dataset.view])); b.setAttribute('aria-pressed',String(b.dataset.view===personalView)); b.onclick=async()=>{if(accountBusy||personalView===b.dataset.view||!await dirtyPrompt())return;profileDirty=false;personalView=b.dataset.view;msg();renderPersonal();}; });
   $('orders-view').hidden=personalView!=='orders'; host.hidden=personalView==='orders'; host.replaceChildren(); if(host.hidden) return;
 
   const head=el('div',null,'view-head');
@@ -183,13 +40,13 @@ function renderPersonal(){
   const intro=el('p',null,'view-intro');
   if(personalView==='profile') intro.textContent=at('Aggiorna i tuoi dati così saranno pronti al prossimo ordine.','Actualizează-ți datele ca să fie pregătite pentru următoarea comandă.');
   if(personalView==='addresses') intro.textContent=at('Ti basta un solo indirizzo principale. Potrai modificarlo quando vuoi.','Îți este suficientă o singură adresă principală. O poți modifica oricând.');
-  if(personalView==='preferences') intro.textContent=at('Scegli se ricevere novità e offerte. Le comunicazioni sugli ordini restano sempre attive.','Alege dacă vrei să primești noutăți și oferte. Comunicările despre comenzi rămân mereu active.');
+  if(personalView==='preferences') intro.textContent=at('Scegli se ricevere novità e offerte. Le comunicazioni sugli ordini sono separate.','Alege dacă vrei să primești noutăți și oferte. Comunicările despre comenzi sunt separate.');
   head.append(intro); host.append(head);
 
   const card=el('section',null,'panel-card');
-  const form=el('form',null,'stack profile-form');
-  const field=(label,key,value='',type='text',max=160,required=false)=>{const l=el('label',label,'field'); const input=el(type==='textarea'?'textarea':'input'); input.name=key; if(type!=='textarea') input.type=type; input.value=value||''; input.maxLength=max; input.required=required; l.append(input); return l;};
-  const save=async()=>{const token=await srAccountToken(); const u=await srProfileSave(p,token); if(!u?.id||u.id!==currentUser.id) throw Error(at('Risposta non valida.','Răspuns invalid.')); currentUser=u; renderPersonal(); msg(at('Modifiche salvate.','Modificări salvate.'));};
+  const form=el('form',null,'stack profile-form');form.addEventListener('input',()=>{profileDirty=true;});
+  const field=(label,key,value='',type='text',max=160,required=false)=>{const l=el('label',label,'field'); const input=el(type==='textarea'?'textarea':'input'); input.name=key; if(type!=='textarea') input.type=type; input.value=value||''; input.maxLength=max; input.required=required;input.autocomplete=({name:'name',phone:'tel',address:'street-address',cap:'postal-code',city:'address-level2',province:'address-level1'})[key]||'off';if(key==='cap'){input.inputMode='numeric';input.pattern='[0-9]{5}';}if(key==='province'){input.pattern='[A-Za-z]{2}';input.autocapitalize='characters';}l.append(input); return l;};
+  const save=async()=>{const token=await srAccountToken(); const u=await srProfileSave(p,token); if(!u?.id||u.id!==currentUser.id) throw Error(at('Risposta non valida.','Răspuns invalid.')); currentUser=u;profileDirty=false; renderPersonal(); msg(at('Modifiche salvate.','Modificări salvate.'));};
 
   if(personalView==='profile'){
     const grid=el('div',null,'field-grid');
@@ -204,14 +61,13 @@ function renderPersonal(){
     const summary=el('div',null,'address-summary');
     if(existing.address){
       summary.append(el('span',existing.label||at('Indirizzo principale','Adresa principală'),'chip'), el('strong',existing.address), el('p',`${existing.cap} ${existing.city} (${existing.province})`));
-      const clear=el('button',at('Rimuovi indirizzo','Șterge adresa'),'text-button'); clear.type='button'; clear.onclick=busy(async()=>{p.addresses=[]; await save()}); summary.append(clear);
+      const clear=el('button',at('Rimuovi indirizzo','Șterge adresa'),'text-button'); clear.type='button'; clear.onclick=async()=>{if(accountBusy)return;if(!await srConfirm(at('Eliminare l’indirizzo?','Ștergi adresa?'),at('Non sarà più disponibile al prossimo checkout.','Nu va mai fi disponibilă la următoarea comandă.'),at('Elimina','Șterge'),at('Annulla','Anulează')))return;await busy(async()=>{p.addresses=[]; await save()})();}; summary.append(clear);
     } else {
       summary.append(el('span',at('Nessun indirizzo salvato','Nicio adresă salvată'),'chip'), el('p',at('Inserisci il tuo indirizzo principale per velocizzare il checkout.','Introdu adresa principală pentru a finaliza comenzile mai repede.')));
     }
-    card.append(summary);
+    card.append(summary);if(existing.address){const edit=el('button',at('Modifica indirizzo','Modifică adresa'),'secondary-action');edit.type='button';edit.onclick=()=>{form.hidden=false;edit.hidden=true;form.querySelector('input')?.focus();};card.append(edit);form.hidden=true;}
     const grid=el('div',null,'field-grid');
     grid.append(
-      field(at('Nome indirizzo (es. Casa)','Nume adresă (ex. Acasă)'),'label',existing.label,'text',40),
       field(at('Strada e numero','Stradă și număr'),'address',existing.address,'text',160,true),
       field('CAP','cap',existing.cap,'text',5,true),
       field(at('Località','Localitate'),'city',existing.city,'text',80,true),
@@ -219,7 +75,7 @@ function renderPersonal(){
     );
     form.append(grid);
     form.onsubmit=busy(async()=>{
-      const a=Object.fromEntries(new FormData(form)); Object.keys(a).forEach(k=>a[k]=String(a[k]).trim()); a.province=a.province.toUpperCase();
+      const a=Object.fromEntries(new FormData(form)); Object.keys(a).forEach(k=>a[k]=String(a[k]).trim()); a.province=a.province.toUpperCase();a.label=existing.label||at('Casa','Acasă');
       if(a.address.length<3||a.city.length<2||!/^[0-9]{5}$/.test(a.cap)||!/^[A-Z]{2}$/.test(a.province)) throw Error(at('Controlla indirizzo, CAP e provincia.','Verifică adresa, codul poștal și provincia.'));
       p.addresses=[a]; await save();
     });
@@ -229,16 +85,13 @@ function renderPersonal(){
     const prefBox=el('label',null,'preference-card'); const check=el('input'); check.type='checkbox'; check.checked=!!p.marketing;
     prefBox.append(check,el('div',null,'preference-copy'));
     prefBox.querySelector('div').append(el('strong',at('Novità e offerte','Noutăți și oferte')),el('p',at('Voglio ricevere email promozionali quando il servizio sarà attivo.','Vreau să primesc e-mailuri promoționale când serviciul va fi activ.')));
-    form.append(prefBox, el('small',at('Le email relative agli ordini continueranno ad arrivare anche se lasci questa opzione disattivata.','E-mailurile legate de comenzi vor continua să sosească și dacă lași această opțiune dezactivată.')));
+    form.append(prefBox, el('small',at('Il consenso per le offerte è facoltativo e non riguarda le comunicazioni sugli ordini.','Acordul pentru oferte este opțional și nu privește comunicările despre comenzi.')));
     form.onsubmit=busy(async()=>{p.marketing=check.checked; await save()});
   }
 
-  const submit=el('button',personalView==='addresses'?at('Salva indirizzo','Salvează adresa'):at('Salva modifiche','Salvează modificările'),'primary'); submit.type='submit'; form.append(submit); card.append(form); host.append(card);
+  const submit=el('button',personalView==='addresses'?at('Salva indirizzo','Salvează adresa'):at('Salva modifiche','Salvează modificările'),'primary'); submit.type='submit'; form.append(submit);card.append(form);const notice=el('p',null,'profile-status');notice.id='profile-status';notice.setAttribute('role','status');notice.setAttribute('aria-live','polite');notice.hidden=true;card.append(notice);host.append(card);
 }
 
+document.addEventListener('click',async e=>{const a=e.target.closest('a[href]');if(!a||!profileDirty||e.ctrlKey||e.metaKey||e.shiftKey||e.altKey||!['http:','https:','file:'].includes(a.protocol))return;e.preventDefault();if(await dirtyPrompt()){profileDirty=false;location.href=a.href;} });
 setMode(mode,false);
-applyTranslations();
-if(params.get('error')||params.get('error_code')){ history.replaceState(null,'',location.pathname+location.search); msg(at('Link non valido o scaduto. Richiedi un nuovo link.','Link invalid sau expirat. Cere un link nou.'),true); }
-else if(params.get('access_token')&&params.get('type')==='recovery'){ recoveryToken=params.get('access_token'); history.replaceState(null,'',location.pathname+location.search); setMode('reset'); }
-else if(params.get('access_token')&&params.get('refresh_token')){ srAccountSave({access_token:params.get('access_token'),refresh_token:params.get('refresh_token'),expires_in:Number(params.get('expires_in')||3600)}); history.replaceState(null,'',location.pathname+location.search); show().then(()=>{if(currentUser) msg(at('Accesso confermato. Benvenuto!','Autentificare confirmată. Bun venit!'));}).catch(e=>msg(friendly(e),true)); }
-else if(mode!=='recover') show().catch(e=>msg(friendly(e),true));
+if(params.get('error')||query.get('error')||params.get('error_code')||query.get('error_code')){history.replaceState(null,'',location.pathname+location.search);msg(at('Link non valido o scaduto. Richiedi un nuovo link.','Link invalid sau expirat. Cere un link nou.'),true);}else if(params.get('access_token')&&params.get('type')==='recovery'){recoveryToken=params.get('access_token');history.replaceState(null,'',location.pathname+location.search);setMode('reset');}else if(params.get('access_token')&&params.get('refresh_token')){srAccountSave({access_token:params.get('access_token'),refresh_token:params.get('refresh_token'),expires_in:Number(params.get('expires_in')||3600)});history.replaceState(null,'',location.pathname+location.search);show().then(()=>{if(currentUser)msg(at('Accesso confermato. Benvenuto!','Autentificare confirmată. Bun venit!'));}).catch(e=>msg(friendly(e),true));}else if(mode!=='recover')show().catch(e=>msg(friendly(e),true));
